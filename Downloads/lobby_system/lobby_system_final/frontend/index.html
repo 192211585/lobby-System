@@ -1,0 +1,916 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Lobby System</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --c-bg:     #07080d;
+  --c-bg1:    #0d1017;
+  --c-bg2:    #131720;
+  --c-bg3:    #181e2b;
+  --c-bg4:    #1e2536;
+  --c-bdr:    #222a3a;
+  --c-bdr2:   #2a3448;
+  --c-acc:    #5865f2;
+  --c-acc2:   #4752c4;
+  --c-glow:   rgba(88,101,242,.28);
+  --c-grn:    #22c55e;
+  --c-grn2:   #16a34a;
+  --c-red:    #ef4444;
+  --c-ylw:    #eab308;
+  --c-txt:    #e2e8f0;
+  --c-txt2:   #7c8db5;
+  --c-txt3:   #4a5578;
+  --c-gold:   #fbbf24;
+  --r:        10px;
+  --r2:       7px;
+  --r3:       5px;
+  --shadow:   0 4px 24px rgba(0,0,0,.5);
+}
+body{background:var(--c-bg);color:var(--c-txt);
+  font-family:'Segoe UI',system-ui,-apple-system,sans-serif;min-height:100vh;overflow-x:hidden}
+
+/* ── Screens ─────────────────────────────────────────────────── */
+.pg{display:none;min-height:100vh}
+.pg.show{display:flex}
+
+/* ── Scrollbar ───────────────────────────────────────────────── */
+::-webkit-scrollbar{width:4px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--c-bdr2);border-radius:4px}
+
+/* ── Buttons ─────────────────────────────────────────────────── */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;
+  padding:9px 18px;border:none;border-radius:var(--r2);
+  font:600 .875rem 'Segoe UI',sans-serif;cursor:pointer;
+  transition:all .14s;white-space:nowrap;letter-spacing:.1px}
+.btn:disabled{opacity:.3;cursor:not-allowed}
+.btn:active:not(:disabled){transform:scale(.97)}
+.b-p{background:var(--c-acc);color:#fff}.b-p:hover:not(:disabled){background:var(--c-acc2);box-shadow:0 0 20px var(--c-glow)}
+.b-g{background:var(--c-grn);color:#fff}.b-g:hover:not(:disabled){background:var(--c-grn2);box-shadow:0 0 14px rgba(34,197,94,.25)}
+.b-r{background:var(--c-red);color:#fff}.b-r:hover:not(:disabled){background:#dc2626}
+.b-s{background:var(--c-bg4);color:var(--c-txt);border:1px solid var(--c-bdr2)}.b-s:hover:not(:disabled){border-color:var(--c-acc)}
+.b-gh{background:transparent;color:var(--c-txt2);border:1px solid var(--c-bdr)}.b-gh:hover:not(:disabled){border-color:var(--c-bdr2);color:var(--c-txt)}
+.b-sm{padding:6px 13px;font-size:.8rem}
+.b-lg{padding:13px 28px;font-size:.95rem}
+.b-fw{width:100%}
+
+/* ── Input ───────────────────────────────────────────────────── */
+.lbl{display:flex;flex-direction:column;gap:5px}
+.lbl-text{font-size:.72rem;font-weight:700;color:var(--c-txt3);text-transform:uppercase;letter-spacing:.9px}
+.inp{background:var(--c-bg3);border:1px solid var(--c-bdr);border-radius:var(--r2);
+  color:var(--c-txt);font:.875rem 'Segoe UI',sans-serif;padding:10px 13px;
+  width:100%;outline:none;transition:border-color .14s,box-shadow .14s}
+.inp:focus{border-color:var(--c-acc);box-shadow:0 0 0 3px var(--c-glow)}
+.inp::placeholder{color:var(--c-txt3)}
+
+/* ── Toast ───────────────────────────────────────────────────── */
+#toasts{position:fixed;top:16px;right:16px;z-index:9999;
+  display:flex;flex-direction:column;gap:7px;pointer-events:none;max-width:310px}
+.tst{padding:11px 14px;border-radius:var(--r2);font-size:.83rem;font-weight:500;
+  border-left:3px solid;animation:fadein .2s ease;backdrop-filter:blur(16px)}
+.tst-info{background:rgba(13,16,23,.95);border-color:#3b82f6;color:var(--c-txt)}
+.tst-ok  {background:rgba(13,16,23,.95);border-color:var(--c-grn);color:var(--c-grn)}
+.tst-warn{background:rgba(13,16,23,.95);border-color:var(--c-ylw);color:var(--c-ylw)}
+.tst-err {background:rgba(13,16,23,.95);border-color:var(--c-red);color:var(--c-red)}
+@keyframes fadein{from{opacity:0;transform:translateX(10px)}to{opacity:1;transform:none}}
+
+/* ── Connection pill ─────────────────────────────────────────── */
+#conn-pill{position:fixed;bottom:14px;right:14px;z-index:999;
+  padding:5px 12px;border-radius:20px;font-size:.73rem;font-weight:600;
+  background:var(--c-bg1);border:1px solid var(--c-bdr);
+  display:flex;align-items:center;gap:6px}
+.dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.d-on {background:var(--c-grn);box-shadow:0 0 6px var(--c-grn);animation:pulse 2.5s infinite}
+.d-off{background:var(--c-red)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+
+/* ═══════════════════════════════════════════════════════════════
+   LOGIN
+═══════════════════════════════════════════════════════════════ */
+#pg-login{
+  flex-direction:column;align-items:center;justify-content:center;
+  padding:40px 20px;gap:40px;
+  background:radial-gradient(ellipse 700px 500px at 30% 25%,rgba(88,101,242,.07) 0%,transparent 70%),
+             radial-gradient(ellipse 500px 400px at 80% 75%,rgba(34,197,94,.04) 0%,transparent 70%),var(--c-bg)
+}
+.hero{text-align:center}
+.hero-icon{width:72px;height:72px;border-radius:18px;
+  background:linear-gradient(135deg,#5865f2 0%,#3b44c0 100%);
+  display:flex;align-items:center;justify-content:center;
+  font-size:2rem;margin:0 auto 20px;
+  box-shadow:0 8px 32px rgba(88,101,242,.45)}
+.hero h1{font-size:2.5rem;font-weight:800;letter-spacing:-1px}
+.hero h1 b{color:var(--c-acc)}
+.hero p{color:var(--c-txt2);margin-top:9px;font-size:.95rem}
+.login-card{width:100%;max-width:420px;background:var(--c-bg1);border:1px solid var(--c-bdr);
+  border-radius:var(--r);padding:28px;display:flex;flex-direction:column;gap:22px;box-shadow:var(--shadow)}
+.login-card-title{font-size:.88rem;font-weight:700;color:var(--c-txt2)}
+.av-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:7px}
+.av-btn{aspect-ratio:1;background:var(--c-bg3);border:1.5px solid var(--c-bdr);border-radius:var(--r2);
+  font-size:1.4rem;cursor:pointer;transition:all .13s;
+  display:flex;align-items:center;justify-content:center}
+.av-btn:hover{border-color:var(--c-acc);transform:scale(1.07)}
+.av-btn.on{border-color:var(--c-acc);background:rgba(88,101,242,.12);box-shadow:0 0 0 2px var(--c-glow)}
+
+/* ═══════════════════════════════════════════════════════════════
+   BROWSER
+═══════════════════════════════════════════════════════════════ */
+#pg-browser{flex-direction:column}
+.navbar{height:54px;background:rgba(9,10,16,.9);border-bottom:1px solid var(--c-bdr);
+  padding:0 28px;display:flex;align-items:center;justify-content:space-between;
+  backdrop-filter:blur(20px);flex-shrink:0;position:sticky;top:0;z-index:50}
+.nav-brand{display:flex;align-items:center;gap:9px}
+.nav-brand-icon{width:28px;height:28px;border-radius:8px;
+  background:linear-gradient(135deg,#5865f2,#3b44c0);
+  display:flex;align-items:center;justify-content:center;font-size:.9rem}
+.nav-brand-name{font-size:.97rem;font-weight:700}
+.nav-brand-name b{color:var(--c-acc)}
+.nav-right{display:flex;align-items:center;gap:10px}
+.user-chip{display:flex;align-items:center;gap:8px;
+  background:var(--c-bg2);border:1px solid var(--c-bdr);
+  padding:5px 12px 5px 8px;border-radius:24px;font-size:.83rem}
+.user-chip-av{font-size:1rem}
+.user-chip-name{font-weight:600}
+.user-chip-status{display:flex;align-items:center;gap:4px;color:var(--c-grn);font-size:.71rem;font-weight:600}
+
+.browser-wrap{display:grid;grid-template-columns:1fr 300px;gap:22px;
+  padding:26px 28px;max-width:1120px;width:100%;margin:0 auto}
+.browser-head{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:16px}
+.browser-head-title{font-size:1.1rem;font-weight:700}
+.browser-head-meta{font-size:.8rem;color:var(--c-txt2);margin-top:2px}
+
+.room-list{display:flex;flex-direction:column;gap:9px}
+.rc{background:var(--c-bg1);border:1px solid var(--c-bdr);border-radius:var(--r);
+  padding:15px 16px;display:flex;align-items:center;gap:13px;
+  cursor:pointer;transition:all .15s;position:relative;overflow:hidden}
+.rc::after{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;
+  background:var(--c-acc);transform:scaleX(0);transform-origin:left;transition:transform .15s}
+.rc:hover{border-color:var(--c-bdr2);background:var(--c-bg2)}
+.rc:hover::after{transform:scaleX(1)}
+.rc-icon{width:42px;height:42px;border-radius:10px;background:var(--c-bg3);
+  border:1px solid var(--c-bdr);display:flex;align-items:center;justify-content:center;
+  font-size:1.35rem;flex-shrink:0}
+.rc-body{flex:1;min-width:0}
+.rc-name{font-weight:700;font-size:.93rem;margin-bottom:5px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rc-meta{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.rc-stat{font-size:.77rem;color:var(--c-txt2);display:flex;align-items:center;gap:4px}
+.rc-pips{display:flex;gap:3px;align-items:center;margin-left:auto}
+.pip{width:8px;height:8px;border-radius:50%}
+.p-on{background:var(--c-acc)}.p-off{background:var(--c-bdr2)}
+.tag{display:inline-flex;align-items:center;padding:2px 7px;
+  border-radius:20px;font-size:.68rem;font-weight:700;
+  text-transform:uppercase;letter-spacing:.3px}
+.tag-open{background:rgba(34,197,94,.1);color:var(--c-grn);border:1px solid rgba(34,197,94,.2)}
+.tag-full{background:rgba(239,68,68,.1);color:var(--c-red);border:1px solid rgba(239,68,68,.2)}
+.tag-state{background:rgba(88,101,242,.12);color:#818cf8;border:1px solid rgba(88,101,242,.2)}
+
+.empty-state{text-align:center;padding:60px 20px;color:var(--c-txt3);
+  display:flex;flex-direction:column;align-items:center;gap:11px}
+.empty-ico{font-size:3rem;opacity:.15;filter:grayscale(1)}
+.empty-state p{font-size:.87rem}
+
+.create-card{background:var(--c-bg1);border:1px solid var(--c-bdr);border-radius:var(--r);
+  padding:20px;display:flex;flex-direction:column;gap:16px;
+  height:fit-content;position:sticky;top:74px}
+.create-card-hd{border-bottom:1px solid var(--c-bdr);padding-bottom:14px}
+.create-card-hd h3{font-size:.88rem;font-weight:700;margin-bottom:4px}
+.create-card-hd p{font-size:.77rem;color:var(--c-txt2);line-height:1.6}
+.rules{font-size:.77rem;color:var(--c-txt2);line-height:1.7}
+.rules b{color:var(--c-txt)}
+
+/* ═══════════════════════════════════════════════════════════════
+   LOBBY
+═══════════════════════════════════════════════════════════════ */
+#pg-lobby{flex-direction:column;height:100vh;overflow:hidden}
+.lnav{height:52px;background:rgba(9,10,16,.92);border-bottom:1px solid var(--c-bdr);
+  padding:0 20px;display:flex;align-items:center;justify-content:space-between;
+  flex-shrink:0;backdrop-filter:blur(16px);gap:12px}
+.lnav-l{display:flex;align-items:center;gap:10px;min-width:0;overflow:hidden}
+.lnav-ico{font-size:1.2rem;flex-shrink:0}
+.lnav-name{font-size:1rem;font-weight:700;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.state-pill{padding:3px 10px;border-radius:20px;font-size:.68rem;
+  font-weight:700;text-transform:uppercase;letter-spacing:.5px;flex-shrink:0}
+.sp-w{background:rgba(74,85,120,.15);color:var(--c-txt3);border:1px solid var(--c-bdr)}
+.sp-r{background:rgba(234,179,8,.1);color:var(--c-ylw);border:1px solid rgba(234,179,8,.2)}
+.sp-s{background:rgba(239,68,68,.1);color:var(--c-red);border:1px solid rgba(239,68,68,.2)}
+.sp-m{background:rgba(34,197,94,.1);color:var(--c-grn);border:1px solid rgba(34,197,94,.2)}
+.lnav-r{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.lnav-count{font-size:.79rem;color:var(--c-txt2)}
+
+.lobby-grid{display:grid;grid-template-columns:286px 1fr;flex:1;overflow:hidden}
+
+/* Squad column */
+.squad-col{background:var(--c-bg1);border-right:1px solid var(--c-bdr);
+  display:flex;flex-direction:column;overflow:hidden}
+.col-head{padding:13px 15px 11px;border-bottom:1px solid var(--c-bdr);
+  font-size:.71rem;font-weight:700;text-transform:uppercase;
+  letter-spacing:.9px;color:var(--c-txt3);display:flex;align-items:center;gap:6px}
+.squad-list{flex:1;overflow-y:auto;padding:9px;display:flex;flex-direction:column;gap:6px}
+.squad-actions{padding:11px;border-top:1px solid var(--c-bdr);display:flex;flex-direction:column;gap:8px}
+
+/* Player slot */
+.slot{background:var(--c-bg2);border:1px solid var(--c-bdr);border-radius:var(--r2);
+  padding:11px 12px;display:flex;align-items:center;gap:10px;transition:all .14s}
+.slot-empty{border-style:dashed;opacity:.35;justify-content:center;color:var(--c-txt3);font-size:.82rem;gap:5px}
+.sl-host{border-color:rgba(251,191,36,.28);background:rgba(251,191,36,.04)}
+.sl-me  {border-color:rgba(88,101,242,.38)}
+.sl-rdy {border-color:rgba(34,197,94,.32);background:rgba(34,197,94,.04)}
+.slot-av{width:36px;height:36px;border-radius:9px;background:var(--c-bg3);
+  border:1px solid var(--c-bdr);display:flex;align-items:center;justify-content:center;
+  font-size:1.35rem;flex-shrink:0}
+.slot-info{flex:1;min-width:0}
+.slot-name{font-weight:600;font-size:.87rem;margin-bottom:4px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.slot-tags{display:flex;gap:3px;flex-wrap:wrap}
+.tg{display:inline-flex;align-items:center;padding:2px 7px;
+  border-radius:12px;font-size:.67rem;font-weight:700;letter-spacing:.3px;text-transform:uppercase}
+.tg-h {background:rgba(251,191,36,.12);color:var(--c-gold);  border:1px solid rgba(251,191,36,.2)}
+.tg-m {background:rgba(88,101,242,.12);color:#818cf8;         border:1px solid rgba(88,101,242,.2)}
+.tg-r {background:rgba(34,197,94,.12); color:var(--c-grn);   border:1px solid rgba(34,197,94,.2)}
+.tg-w {background:rgba(74,85,120,.12); color:var(--c-txt3);  border:1px solid var(--c-bdr)}
+.tg-y {background:rgba(88,101,242,.18);color:#a5b4fc;          border:1px solid rgba(88,101,242,.3)}
+.prs-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;margin-left:auto}
+.prs-on {background:var(--c-grn);box-shadow:0 0 5px var(--c-grn)}
+.prs-off{background:var(--c-txt3)}
+
+/* Actions */
+.act-hint{text-align:center;color:var(--c-txt3);font-size:.74rem;line-height:1.5}
+.cd-wrap{text-align:center;padding:6px 0;display:flex;flex-direction:column;align-items:center;gap:5px}
+.cd-num{font-size:3.5rem;font-weight:900;line-height:1;
+  background:linear-gradient(135deg,#ef4444,#f97316);
+  background-clip:text;
+  -webkit-background-clip:text;
+  -webkit-text-fill-color:transparent;
+  animation:cdb 1s infinite}
+@keyframes cdb{0%,100%{transform:scale(1)}50%{transform:scale(1.09)}}
+.cd-lbl{font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--c-txt3)}
+.cd-bar{width:100%;height:3px;background:var(--c-bdr2);border-radius:2px;overflow:hidden}
+.cd-fill{height:100%;background:linear-gradient(90deg,var(--c-red),var(--c-ylw));
+  border-radius:2px;transition:width 1s linear}
+
+/* Chat column */
+.chat-col{display:flex;flex-direction:column;overflow:hidden}
+.chat-msgs{flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:10px}
+.msg{display:flex;gap:9px;align-items:flex-start}
+.msg-av{width:32px;height:32px;border-radius:9px;background:var(--c-bg3);
+  border:1px solid var(--c-bdr);display:flex;align-items:center;justify-content:center;
+  font-size:1.1rem;flex-shrink:0;margin-top:1px}
+.msg-body{flex:1}
+.msg-hd{display:flex;align-items:baseline;gap:7px;margin-bottom:3px}
+.msg-name{font-weight:600;font-size:.83rem}
+.nm-host{color:var(--c-gold)}.nm-me{color:#818cf8}
+.msg-time{font-size:.7rem;color:var(--c-txt3)}
+.msg-text{font-size:.875rem;line-height:1.5;word-break:break-word;color:var(--c-txt)}
+.sys-msg{text-align:center;font-size:.75rem;color:var(--c-txt3);
+  display:flex;align-items:center;gap:8px;padding:2px 0}
+.sys-msg::before,.sys-msg::after{content:'';flex:1;height:1px;background:var(--c-bdr)}
+.chatbar{padding:12px 14px;border-top:1px solid var(--c-bdr);
+  display:flex;gap:8px;flex-shrink:0;background:var(--c-bg1)}
+.chatbar .inp{flex:1}
+
+/* ═══════════════════════════════════════════════════════════════
+   MATCH
+═══════════════════════════════════════════════════════════════ */
+#pg-match{flex-direction:column;align-items:center;justify-content:center;
+  gap:28px;padding:40px;text-align:center;
+  background:radial-gradient(ellipse 600px 400px at 50% 30%,rgba(34,197,94,.05) 0%,transparent 70%),var(--c-bg)}
+.match-icon{width:90px;height:90px;border-radius:22px;
+  background:linear-gradient(135deg,rgba(34,197,94,.2),rgba(34,197,94,.05));
+  border:1px solid rgba(34,197,94,.25);
+  display:flex;align-items:center;justify-content:center;font-size:3rem;
+  animation:mpulse 2s infinite;box-shadow:0 0 40px rgba(34,197,94,.12)}
+@keyframes mpulse{0%,100%{box-shadow:0 0 40px rgba(34,197,94,.12)}50%{box-shadow:0 0 60px rgba(34,197,94,.25)}}
+.match-title{font-size:1.9rem;font-weight:800;letter-spacing:-.4px}
+.match-title span{color:var(--c-grn)}
+.match-sub{color:var(--c-txt2);font-size:.88rem}
+.squad-strip{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;max-width:500px}
+.squad-chip{display:flex;align-items:center;gap:7px;
+  background:var(--c-bg1);border:1px solid var(--c-bdr);
+  border-radius:24px;padding:6px 13px 6px 7px;font-size:.82rem;font-weight:600}
+.squad-chip-av{font-size:1rem}
+.match-chat{width:100%;max-width:540px;background:var(--c-bg1);
+  border:1px solid var(--c-bdr);border-radius:var(--r);overflow:hidden;display:flex;flex-direction:column}
+.match-chat .chat-msgs{height:170px}
+
+/* ═══════════════════════════════════════════════════════════════
+   RESULT
+═══════════════════════════════════════════════════════════════ */
+#pg-result{flex-direction:column;align-items:center;justify-content:center;
+  gap:22px;padding:40px;text-align:center;
+  background:radial-gradient(ellipse 700px 500px at 50% 40%,rgba(251,191,36,.05) 0%,transparent 70%),var(--c-bg)}
+.res-trophy{width:100px;height:100px;border-radius:24px;
+  background:linear-gradient(135deg,rgba(251,191,36,.2),rgba(251,191,36,.05));
+  border:1px solid rgba(251,191,36,.25);
+  display:flex;align-items:center;justify-content:center;font-size:3.5rem;
+  animation:tr 3s infinite;box-shadow:0 0 50px rgba(251,191,36,.12)}
+@keyframes tr{0%,100%{transform:scale(1) rotate(-2deg)}50%{transform:scale(1.04) rotate(2deg)}}
+.res-label{font-size:.73rem;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--c-txt3)}
+.res-winner{font-size:1.4rem;font-weight:800;color:var(--c-gold);max-width:480px;line-height:1.4}
+.res-dur{font-size:.82rem;color:var(--c-txt3)}
+.recap{display:flex;flex-direction:column;gap:7px;max-width:360px;width:100%}
+.recap-row{background:var(--c-bg1);border:1px solid var(--c-bdr);border-radius:var(--r2);
+  padding:9px 13px;display:flex;align-items:center;gap:9px;font-size:.84rem}
+.recap-av{font-size:1.15rem}.recap-name{font-weight:600;flex:1}
+.recap-role{color:var(--c-txt3);font-size:.77rem}
+</style>
+</head>
+<body>
+
+<div id="toasts"></div>
+<div id="conn-pill">
+  <span class="dot d-off" id="conn-dot"></span>
+  <span id="conn-txt">Connecting…</span>
+</div>
+
+<!-- ═══════ LOGIN ═════════════════════════════════════════════ -->
+<section id="pg-login" class="pg show">
+  <div class="hero">
+    <div class="hero-icon">🎮</div>
+    <h1><b>Lobby</b> System</h1>
+    <p>Create or join a room · ready up · start the match</p>
+  </div>
+  <div class="login-card">
+    <div class="login-card-title">Create Your Profile</div>
+    <div class="lbl">
+      <span class="lbl-text">Username</span>
+      <input class="inp" id="inp-user" type="text"
+        placeholder="Enter your display name…" maxlength="20" autocomplete="off"/>
+    </div>
+    <div class="lbl">
+      <span class="lbl-text">Avatar</span>
+      <div class="av-grid" id="av-grid"></div>
+    </div>
+    <button class="btn b-p b-fw b-lg" id="btn-login">Enter Lobby System</button>
+    <p style="text-align:center;color:var(--c-txt3);font-size:.74rem">
+      Server must be running: <code style="color:var(--c-txt2);font-size:.8em">python main.py</code>
+    </p>
+  </div>
+</section>
+
+<!-- ═══════ BROWSER ═══════════════════════════════════════════ -->
+<section id="pg-browser" class="pg">
+  <nav class="navbar">
+    <div class="nav-brand">
+      <div class="nav-brand-icon">🎮</div>
+      <div class="nav-brand-name"><b>Lobby</b> System</div>
+    </div>
+    <div class="nav-right">
+      <div class="user-chip" id="user-chip">
+        <span class="user-chip-av" id="nav-av">🎮</span>
+        <span class="user-chip-name" id="nav-nm">—</span>
+        <div class="user-chip-status">
+          <span class="dot d-on" style="width:6px;height:6px"></span>Online
+        </div>
+      </div>
+    </div>
+  </nav>
+  <div class="browser-wrap">
+    <div>
+      <div class="browser-head">
+        <div>
+          <div class="browser-head-title">Available Rooms</div>
+          <div class="browser-head-meta" id="room-count-text">—</div>
+        </div>
+        <button class="btn b-gh b-sm" id="btn-refresh">↻  Refresh</button>
+      </div>
+      <div id="room-list" class="room-list"></div>
+    </div>
+    <div class="create-card">
+      <div class="create-card-hd">
+        <h3>Create a Room</h3>
+        <p>You'll be the Host. Up to 3 players can join. Members must ready up before you can start.</p>
+      </div>
+      <div class="lbl">
+        <span class="lbl-text">Room Name</span>
+        <input class="inp" id="inp-room" type="text"
+          placeholder="e.g. Friday Night Crew" maxlength="30"/>
+      </div>
+      <button class="btn b-p b-fw" id="btn-create">Create Room</button>
+      <hr style="border:none;border-top:1px solid var(--c-bdr)"/>
+      <div class="rules">
+        <b>Host controls:</b><br>
+        · Members must press <b>Ready</b> first<br>
+        · Only Host can start the match<br>
+        · Host leaving dissolves the room
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════ LOBBY ═════════════════════════════════════════════ -->
+<section id="pg-lobby" class="pg">
+  <nav class="lnav">
+    <div class="lnav-l">
+      <span class="lnav-ico">🏟️</span>
+      <span class="lnav-name" id="l-name">Room</span>
+      <span class="state-pill sp-w" id="l-state">Waiting</span>
+    </div>
+    <div class="lnav-r">
+      <span class="lnav-count" id="l-count">0 / 4</span>
+      <button class="btn b-gh b-sm" id="btn-leave">Leave Room</button>
+    </div>
+  </nav>
+  <div class="lobby-grid">
+    <!-- Squad panel -->
+    <div class="squad-col">
+      <div class="col-head">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
+          <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+        </svg>
+        Players (1 Host + 3 Members)
+      </div>
+      <div class="squad-list" id="squad-list"></div>
+      <div class="squad-actions" id="squad-actions"></div>
+    </div>
+    <!-- Chat panel -->
+    <div class="chat-col">
+      <div class="col-head" style="padding:13px 15px 11px;border-bottom:1px solid var(--c-bdr)">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+        </svg>
+        Room Chat
+      </div>
+      <div class="chat-msgs" id="l-msgs"></div>
+      <div class="chatbar">
+        <input class="inp" id="l-inp" type="text"
+          placeholder="Message your squad…" maxlength="300" autocomplete="off"/>
+        <button class="btn b-p b-sm" id="btn-lsend">Send</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════ MATCH ═════════════════════════════════════════════ -->
+<section id="pg-match" class="pg">
+  <div class="match-icon">⚔️</div>
+  <div>
+    <div class="match-title">Match <span>In Progress</span></div>
+    <div class="match-sub">Stay coordinated — the clock is ticking</div>
+  </div>
+  <div class="squad-strip" id="match-strip"></div>
+  <div class="match-chat">
+    <div class="col-head" style="padding:11px 14px;border-bottom:1px solid var(--c-bdr)">
+      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+      </svg>
+      In-Match Chat
+    </div>
+    <div class="chat-msgs" id="m-msgs"></div>
+    <div class="chatbar">
+      <input class="inp" id="m-inp" type="text"
+        placeholder="Chat with your squad…" maxlength="300" autocomplete="off"/>
+      <button class="btn b-p b-sm" id="btn-msend">Send</button>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════ RESULT ════════════════════════════════════════════ -->
+<section id="pg-result" class="pg">
+  <div class="res-label">Match Complete</div>
+  <div class="res-trophy">🏆</div>
+  <div class="res-winner" id="r-winner">—</div>
+  <div class="res-dur" id="r-dur"></div>
+  <div class="recap" id="r-recap"></div>
+  <button class="btn b-p b-lg" id="btn-again" style="margin-top:8px">Back to Lobby Browser</button>
+</section>
+
+<script>
+'use strict';
+// ── State ─────────────────────────────────────────────────────
+const S = {
+  me:      null,  // {id,username,avatar,role,status}
+  room:    null,  // room object
+  squad:   [],    // player list
+  rooms:   [],    // browser list
+  msgs:    [],    // chat messages [{pid,user,av,text,ts} | {sys,text}]
+  cd:      null,  // countdown number|null
+  cdMax:   5,
+};
+
+// ── Screen ────────────────────────────────────────────────────
+function show(name) {
+  document.querySelectorAll('.pg').forEach(e => e.classList.remove('show'));
+  const el = document.getElementById('pg-' + name);
+  if (el) el.classList.add('show');
+}
+
+// ── Toast ─────────────────────────────────────────────────────
+function toast(txt, type) {
+  const el = document.createElement('div');
+  el.className = 'tst tst-' + (type || 'info');
+  el.textContent = txt;
+  document.getElementById('toasts').appendChild(el);
+  setTimeout(() => el.remove(), 3800);
+}
+
+// ── WebSocket ─────────────────────────────────────────────────
+let ws, cdTimer;
+
+function wsInit() {
+  const url = 'ws://' + (location.hostname || 'localhost') + ':8765';
+  try { ws = new WebSocket(url); } catch(e) { setTimeout(wsInit, 2500); return; }
+  ws.onopen    = () => { setDot(true); };
+  ws.onclose   = () => { setDot(false); setTimeout(wsInit, 2000); };
+  ws.onerror   = () => {};
+  ws.onmessage = ev => {
+    let d; try { d = JSON.parse(ev.data); } catch(e) { return; }
+    console.log('[IN]', d.type, d.payload);
+    handle(d.type, d.payload || {});
+  };
+}
+
+function send(type, payload) {
+  if (!ws || ws.readyState !== 1) { toast('Not connected — please wait', 'err'); return; }
+  console.log('[OUT]', type, payload);
+  ws.send(JSON.stringify({ type, payload: payload || {} }));
+}
+
+function setDot(on) {
+  document.getElementById('conn-dot').className = 'dot ' + (on ? 'd-on' : 'd-off');
+  document.getElementById('conn-txt').textContent = on ? 'Connected' : 'Reconnecting…';
+}
+
+// ── Events ────────────────────────────────────────────────────
+function handle(type, p) {
+
+  if (type === 'welcome') {
+    S.me = { id: p.player_id, username: p.username, avatar: p.avatar, role: null, status: 'IDLE' };
+    S.msgs = [];
+    document.getElementById('nav-av').textContent = p.avatar;
+    document.getElementById('nav-nm').textContent = p.username;
+    show('browser');
+    toast('Welcome, ' + p.username + '!', 'ok');
+    send('list_rooms');
+    return;
+  }
+
+  if (type === 'error') { toast(p.detail || 'An error occurred', 'err'); return; }
+
+  if (type === 'room_list') {
+    S.rooms = p.rooms || [];
+    renderBrowser();
+    return;
+  }
+
+  if (type === 'room_created') {
+    // room_update will follow and switch screens
+    return;
+  }
+
+  if (type === 'room_update') {
+    S.room = {
+      id: p.id, name: p.name, host_id: p.host_id,
+      state: p.state, player_count: p.player_count,
+      max_players: p.max_players, slots_left: p.slots_left,
+    };
+    S.squad = p.squad || [];
+    if (S.me) {
+      const me = S.squad.find(x => x.id === S.me.id);
+      if (me) { S.me.role = me.role; S.me.status = me.status; }
+    }
+    show('lobby');
+    renderLobby();
+    return;
+  }
+
+  if (type === 'player_joined') {
+    sysMsg(p.avatar + ' ' + p.username + ' joined the room');
+    return;
+  }
+
+  if (type === 'player_left') {
+    if (S.me && p.player_id === S.me.id) {
+      S.room = null; S.squad = []; S.msgs = [];
+      if (S.me) S.me.role = null;
+      clearInterval(cdTimer); S.cd = null;
+      show('browser');
+      send('list_rooms');
+    } else {
+      sysMsg(p.username + ' left the room');
+    }
+    return;
+  }
+
+  if (type === 'player_ready') {
+    sysMsg(p.username + (p.is_ready ? ' is ready ✓' : ' cancelled ready'));
+    return;
+  }
+
+  if (type === 'match_countdown') {
+    const secs = p.countdown_secs || 5;
+    S.cdMax = secs;
+    toast('⚡ Match starting in ' + secs + 's!', 'warn');
+    startCD(secs);
+    return;
+  }
+
+  if (type === 'match_started') {
+    clearInterval(cdTimer); S.cd = null;
+    renderMatchScreen();
+    show('match');
+    toast('⚔️ Match has started!', 'ok');
+    return;
+  }
+
+  if (type === 'match_finished') {
+    renderResultScreen(p);
+    show('result');
+    return;
+  }
+
+  if (type === 'chat') {
+    S.msgs.push({ pid: p.player_id, user: p.username, av: p.avatar, text: p.text,
+      ts: new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) });
+    if (S.msgs.length > 200) S.msgs = S.msgs.slice(-150);
+    renderMsgs('l-msgs');
+    renderMsgs('m-msgs');
+    return;
+  }
+}
+
+function sysMsg(text) {
+  S.msgs.push({ sys: true, text });
+  if (S.msgs.length > 200) S.msgs = S.msgs.slice(-150);
+  renderMsgs('l-msgs');
+  renderMsgs('m-msgs');
+}
+
+// ── Countdown ─────────────────────────────────────────────────
+function startCD(secs) {
+  clearInterval(cdTimer);
+  S.cd = secs;
+  renderActions();
+  cdTimer = setInterval(() => {
+    S.cd = Math.max(0, (S.cd || 1) - 1);
+    renderActions();
+    if (S.cd <= 0) clearInterval(cdTimer);
+  }, 1000);
+}
+
+// ── Render: Browser ───────────────────────────────────────────
+function renderBrowser() {
+  const el = document.getElementById('room-list');
+  const ct = document.getElementById('room-count-text');
+  const n  = S.rooms.length;
+  ct.textContent = n ? n + ' room' + (n !== 1 ? 's' : '') + ' available' : 'No rooms open right now';
+
+  if (!n) {
+    el.innerHTML =
+      '<div class="empty-state">' +
+        '<div class="empty-ico">🏟️</div>' +
+        '<p>No rooms found.<br>Create one to get started!</p>' +
+      '</div>';
+    return;
+  }
+
+  el.innerHTML = S.rooms.map(r => {
+    const full = r.slots_left === 0;
+    const pips = Array.from({length: r.max_players}, (_, i) =>
+      '<span class="pip ' + (i < r.player_count ? 'p-on' : 'p-off') + '"></span>'
+    ).join('');
+    return (
+      '<div class="rc" data-room-id="' + esc(r.id) + '" onclick="joinRoomByClick(event,this.dataset.roomId)">' +
+        '<div class="rc-icon">🏟️</div>' +
+        '<div class="rc-body">' +
+          '<div class="rc-name">' + esc(r.name) + '</div>' +
+          '<div class="rc-meta">' +
+            '<span class="rc-stat">' +
+              '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>' +
+              r.player_count + ' / ' + r.max_players + ' players' +
+            '</span>' +
+            '<span class="tag ' + (full ? 'tag-full' : 'tag-open') + '">' + (full ? 'Full' : r.slots_left + ' open') + '</span>' +
+            '<span class="tag tag-state">' + r.state.replace('_', ' ') + '</span>' +
+          '</div>' +
+        '</div>' +
+        '<div class="rc-pips">' + pips + '</div>' +
+        '<button class="btn b-s b-sm" data-room-id="' + esc(r.id) + '" ' + (full ? 'disabled' : '') +
+          ' onclick="joinRoomByClick(event,this.dataset.roomId)">' +
+          (full ? 'Full' : 'Join') +
+        '</button>' +
+      '</div>'
+    );
+  }).join('');
+}
+
+// ── Render: Lobby ─────────────────────────────────────────────
+function renderLobby() {
+  if (!S.room) return;
+
+  // Navbar
+  document.getElementById('l-name').textContent  = S.room.name;
+  document.getElementById('l-count').textContent = S.room.player_count + ' / ' + S.room.max_players + ' players';
+  const sb = document.getElementById('l-state');
+  const stateText = {WAITING:'Waiting',READY_CHECK:'All Ready',STARTING:'Starting',IN_MATCH:'In Match'};
+  const stateClass = {WAITING:'sp-w',READY_CHECK:'sp-r',STARTING:'sp-s',IN_MATCH:'sp-m'};
+  sb.textContent = stateText[S.room.state] || S.room.state;
+  sb.className   = 'state-pill ' + (stateClass[S.room.state] || 'sp-w');
+
+  // Squad slots
+  const sl = document.getElementById('squad-list');
+  let html = '';
+  S.squad.forEach(p => {
+    const isMe   = S.me && p.id === S.me.id;
+    const isHost = p.role === 'HOST';
+    const isRdy  = p.is_ready;
+    let cls = 'slot';
+    if (isHost) cls += ' sl-host';
+    if (isMe)   cls += ' sl-me';
+    if (!isHost && isRdy) cls += ' sl-rdy';
+    html +=
+      '<div class="' + cls + '">' +
+        '<div class="slot-av">' + esc(p.avatar) + '</div>' +
+        '<div class="slot-info">' +
+          '<div class="slot-name">' + esc(p.username) + '</div>' +
+          '<div class="slot-tags">' +
+            '<span class="tg ' + (isHost ? 'tg-h' : 'tg-m') + '">' + (isHost ? '★ Host' : 'Member') + '</span>' +
+            (isHost
+              ? '<span class="tg tg-r">Ready</span>'
+              : (isRdy
+                  ? '<span class="tg tg-r">✓ Ready</span>'
+                  : '<span class="tg tg-w">Not Ready</span>')) +
+            (isMe ? '<span class="tg tg-y">You</span>' : '') +
+          '</div>' +
+        '</div>' +
+        '<span class="prs-dot ' + (p.presence === 'ONLINE' ? 'prs-on' : 'prs-off') + '"' +
+          ' title="' + esc(p.presence) + '"></span>' +
+      '</div>';
+  });
+  for (let i = S.squad.length; i < 4; i++)
+    html += '<div class="slot slot-empty">+ Waiting for player…</div>';
+  sl.innerHTML = html;
+
+  renderActions();
+  renderMsgs('l-msgs');
+}
+
+// ── Render: Actions ───────────────────────────────────────────
+function renderActions() {
+  const box = document.getElementById('squad-actions');
+  if (!S.me || !S.room) return;
+
+  if (S.room.state === 'STARTING' && S.cd !== null) {
+    const pct = Math.round(Math.max(0, (S.cd / S.cdMax) * 100));
+    box.innerHTML =
+      '<div class="cd-wrap">' +
+        '<div class="cd-num">' + S.cd + '</div>' +
+        '<div class="cd-lbl">Match starting…</div>' +
+        '<div class="cd-bar"><div class="cd-fill" style="width:' + pct + '%"></div></div>' +
+      '</div>';
+    return;
+  }
+
+  const isHost  = S.me.role === 'HOST';
+  const isReady = S.me.status === 'READY';
+
+  if (isHost) {
+    const members  = S.squad.filter(p => p.role === 'MEMBER');
+    const notReady = members.filter(p => !p.is_ready);
+    const canStart = members.length > 0 && notReady.length === 0;
+    let hint = '';
+    if (members.length === 0)      hint = 'Waiting for members to join…';
+    else if (notReady.length > 0)  hint = 'Not ready: ' + notReady.map(p => p.username).join(', ');
+    else                           hint = 'All members ready — start when you are!';
+    box.innerHTML =
+      '<button class="btn b-g b-fw" id="btn-start"' + (canStart ? '' : ' disabled') + '>' +
+        (canStart ? '▶  Start Match' : 'Waiting for members…') +
+      '</button>' +
+      '<div class="act-hint">' + esc(hint) + '</div>';
+    const b = document.getElementById('btn-start');
+    if (b) b.addEventListener('click', () => send('start_match'));
+  } else {
+    box.innerHTML =
+      '<button class="btn ' + (isReady ? 'b-r' : 'b-g') + ' b-fw" id="btn-rdy">' +
+        (isReady ? '✕  Cancel Ready' : '✓  Ready Up') +
+      '</button>' +
+      '<div class="act-hint">' +
+        (isReady ? 'You are ready. Waiting for host to start.' : 'Press Ready to allow the host to start.') +
+      '</div>';
+    const b = document.getElementById('btn-rdy');
+    if (b) b.addEventListener('click', () => send('set_ready', { ready: !isReady }));
+  }
+}
+
+// ── Render: Chat ──────────────────────────────────────────────
+function renderMsgs(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const atBot = el.scrollHeight - el.scrollTop - el.clientHeight < 70;
+  el.innerHTML = S.msgs.map(m => {
+    if (m.sys) return '<div class="sys-msg">' + esc(m.text) + '</div>';
+    const isMe   = S.me && m.pid === S.me.id;
+    const isHost = S.squad.find(p => p.id === m.pid)?.role === 'HOST';
+    const nc = isHost ? 'nm-host' : isMe ? 'nm-me' : '';
+    return (
+      '<div class="msg">' +
+        '<div class="msg-av">' + esc(m.av) + '</div>' +
+        '<div class="msg-body">' +
+          '<div class="msg-hd">' +
+            '<span class="msg-name ' + nc + '">' + esc(m.user) + '</span>' +
+            '<span class="msg-time">' + esc(m.ts) + '</span>' +
+          '</div>' +
+          '<div class="msg-text">' + esc(m.text) + '</div>' +
+        '</div>' +
+      '</div>'
+    );
+  }).join('');
+  if (atBot) el.scrollTop = el.scrollHeight;
+}
+
+// ── Render: Match screen ──────────────────────────────────────
+function renderMatchScreen() {
+  document.getElementById('match-strip').innerHTML = S.squad.map(p =>
+    '<div class="squad-chip">' +
+      '<span class="squad-chip-av">' + esc(p.avatar) + '</span>' +
+      '<span>' + esc(p.username) + '</span>' +
+      (p.role === 'HOST' ? '<span class="tg tg-h" style="font-size:.6rem">Host</span>' : '') +
+    '</div>'
+  ).join('');
+}
+
+// ── Render: Result screen ─────────────────────────────────────
+function renderResultScreen(p) {
+  document.getElementById('r-winner').textContent = p.winner || 'Match over!';
+  document.getElementById('r-dur').textContent    = 'Duration: ' + p.duration_secs + 's';
+  document.getElementById('r-recap').innerHTML = S.squad.map(pl =>
+    '<div class="recap-row">' +
+      '<span class="recap-av">' + esc(pl.avatar) + '</span>' +
+      '<span class="recap-name">' + esc(pl.username) + '</span>' +
+      '<span class="recap-role">' + (pl.role === 'HOST' ? '★ Host' : 'Member') + '</span>' +
+    '</div>'
+  ).join('');
+}
+
+// ── Helpers ───────────────────────────────────────────────────
+function joinRoom(id) { send('join_room', { room_id: id }); }
+function joinRoomByClick(event, id) { event.stopPropagation(); joinRoom(id); }
+
+function sendChat(inputId) {
+  const el = document.getElementById(inputId);
+  const t = (el.value || '').trim();
+  if (!t) return;
+  send('chat', { text: t });
+  el.value = '';
+}
+
+function esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── Avatar picker ─────────────────────────────────────────────
+const AVATARS = ['🎮','🕹️','🎯','⚡','🔥','💎','🛸','🌊','🎲','🦁','🐉','🦊'];
+let selAv = AVATARS[0];
+const avG = document.getElementById('av-grid');
+AVATARS.forEach(a => {
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.className = 'av-btn' + (a === selAv ? ' on' : '');
+  b.textContent = a; b.title = a;
+  b.onclick = () => {
+    selAv = a;
+    avG.querySelectorAll('.av-btn').forEach(x => x.classList.remove('on'));
+    b.classList.add('on');
+  };
+  avG.appendChild(b);
+});
+
+// ── Bindings ──────────────────────────────────────────────────
+document.getElementById('btn-login').onclick = () => {
+  const u = document.getElementById('inp-user').value.trim();
+  if (!u) { toast('Please enter a username', 'err'); return; }
+  if (!ws || ws.readyState !== 1) { toast('Not connected — please wait', 'err'); return; }
+  send('connect', { username: u, avatar: selAv });
+};
+document.getElementById('inp-user').onkeydown = e => { if (e.key==='Enter') document.getElementById('btn-login').click(); };
+
+document.getElementById('btn-refresh').onclick = () => send('list_rooms');
+
+document.getElementById('btn-create').onclick = () => {
+  const n = document.getElementById('inp-room').value.trim();
+  if (!n) { toast('Please enter a room name', 'err'); return; }
+  send('create_room', { name: n });
+};
+document.getElementById('inp-room').onkeydown = e => { if (e.key==='Enter') document.getElementById('btn-create').click(); };
+
+document.getElementById('btn-leave').onclick  = () => send('leave_room');
+document.getElementById('btn-lsend').onclick  = () => sendChat('l-inp');
+document.getElementById('l-inp').onkeydown    = e => { if (e.key==='Enter') sendChat('l-inp'); };
+document.getElementById('btn-msend').onclick  = () => sendChat('m-inp');
+document.getElementById('m-inp').onkeydown    = e => { if (e.key==='Enter') sendChat('m-inp'); };
+document.getElementById('btn-again').onclick  = () => {
+  S.room = null; S.squad = []; S.msgs = [];
+  show('browser'); send('list_rooms');
+};
+
+// ── Boot ──────────────────────────────────────────────────────
+wsInit();
+</script>
+</body>
+</html>
