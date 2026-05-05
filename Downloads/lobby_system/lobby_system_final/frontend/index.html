@@ -676,7 +676,7 @@ function renderBrowser() {
       '<span class="pip ' + (i < r.player_count ? 'p-on' : 'p-off') + '"></span>'
     ).join('');
     return (
-      '<div class="rc" data-room-id="' + esc(r.id) + '" onclick="joinRoomByClick(event,this.dataset.roomId)">' +
+      '<div class="rc" onclick="joinRoom(\'' + r.id + '\')">' +
         '<div class="rc-icon">🏟️</div>' +
         '<div class="rc-body">' +
           '<div class="rc-name">' + esc(r.name) + '</div>' +
@@ -690,8 +690,8 @@ function renderBrowser() {
           '</div>' +
         '</div>' +
         '<div class="rc-pips">' + pips + '</div>' +
-        '<button class="btn b-s b-sm" data-room-id="' + esc(r.id) + '" ' + (full ? 'disabled' : '') +
-          ' onclick="joinRoomByClick(event,this.dataset.roomId)">' +
+        '<button class="btn b-s b-sm" ' + (full ? 'disabled' : '') +
+          ' onclick="event.stopPropagation();joinRoom(\'' + r.id + '\')">' +
           (full ? 'Full' : 'Join') +
         '</button>' +
       '</div>'
@@ -849,7 +849,6 @@ function renderResultScreen(p) {
 
 // ── Helpers ───────────────────────────────────────────────────
 function joinRoom(id) { send('join_room', { room_id: id }); }
-function joinRoomByClick(event, id) { event.stopPropagation(); joinRoom(id); }
 
 function sendChat(inputId) {
   const el = document.getElementById(inputId);
